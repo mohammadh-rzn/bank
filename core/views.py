@@ -17,9 +17,10 @@ import random
 from datetime import timedelta
 from django.utils import timezone
 from django.db import transaction
-from rest_framework.throttling import UserRateThrottle, AnonRateThrottle
+from rest_framework.throttling import UserRateThrottle,ScopedRateThrottle
 from rest_framework.decorators import throttle_classes
 from decimal import Decimal
+from django.shortcuts import get_object_or_404
 class SignUpView(APIView):
     """
     User registration endpoint.
@@ -38,8 +39,9 @@ class SignUpView(APIView):
             )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
-@throttle_classes([UserRateThrottle])
 class LoginView(APIView):
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'login'
     def post(self, request):
         serializer = LoginSerializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
@@ -106,12 +108,15 @@ class LoginView(APIView):
         return Response({
             'access': str(refresh.access_token),
             'refresh': str(refresh),
+            'user_id': user.id,
             'username': user.username,
             'balance': float(user.balance)
         }, status=status.HTTP_200_OK)
     
-@throttle_classes([UserRateThrottle])
+
 class UserBalanceView(APIView):
+    throttle_classes = [ScopedRateThrottle,UserRateThrottle]
+    throttle_scope = 'balance'
     """
     Authenticated view that returns the current user's balance
     """
@@ -126,10 +131,12 @@ class StandardResultsSetPagination(PageNumberPagination):
     page_size_query_param = 'page_size'
     max_page_size = 100
 
-@throttle_classes([UserRateThrottle])
+
 class UserTransactionsView(APIView):
     permission_classes = [IsAuthenticated]
     pagination_class = StandardResultsSetPagination
+    throttle_classes = [ScopedRateThrottle,UserRateThrottle]
+    throttle_scope = 'transaction'
     
     def get(self, request):
         transactions = Transaction.objects.filter(user=request.user).order_by('-timestamp')
@@ -140,47 +147,69 @@ class UserTransactionsView(APIView):
         serializer = TransactionSerializer(page, many=True)
         return paginator.get_paginated_response(serializer.data)
     
-from .serializers import TransactionCreateSerializer
+from .serializers import TransferSerializer
 
-@throttle_classes([UserRateThrottle])
-class CreateTransactionView(APIView):
+class TransferView(APIView):
+    """
+    Transfer funds between authenticated user and another user by ID
+    Requires:
+    - recipient_id: ID of recipient user
+    - amount: Positive decimal value
+    - description: Optional transaction memo
+    """
     permission_classes = [IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle,UserRateThrottle]
+    throttle_scope = 'transfer'
     
     def post(self, request):
-        serializer = TransactionCreateSerializer(
-            data=request.data,
-            context={'request': request}
-        )
-        
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        
+        serializer = TransferSerializer(data=request.data,context={'request': request})
+        serializer.is_valid(raise_exception=True)
+
+        recipient_id = serializer.validated_data['recipient_id']
+        amount = serializer.validated_data['amount']
+        description = serializer.validated_data.get('description', '')
+
         try:
             with transaction.atomic():
-                # Lock the user's row for update
-                user = User.objects.select_for_update().get(pk=request.user.pk)
-                
-                # Create the transaction
-                transaction_obj = serializer.save(user=user)
-                
-                # Update user balance
-                if transaction_obj.transaction_type == Transaction.DEPOSIT:
-                    user.balance += transaction_obj.amount
-                else:  # Withdrawal
-                    user.balance -= transaction_obj.amount
-                user.save()
-                
+                # Lock both user rows to prevent concurrent modifications
+                sender = User.objects.select_for_update().get(pk=request.user.pk)
+                recipient = get_object_or_404(User.objects.select_for_update(), pk=recipient_id)
+
+                # Validate sufficient balance
+                if sender.balance < amount:
+                    return Response(
+                        {'error': 'Insufficient funds'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
+                # Create transactions
+                Transaction.objects.create(
+                    user=sender,
+                    amount=amount,
+                    transaction_type=Transaction.WITHDRAWAL,
+                    description=f"Transfer to {recipient.username}: {description}"
+                )
+                Transaction.objects.create(
+                    user=recipient,
+                    amount=amount,
+                    transaction_type=Transaction.DEPOSIT,
+                    description=f"Transfer from {sender.username}: {description}"
+                )
+
+                # Update balances
+                sender.balance -= amount
+                recipient.balance += amount
+                sender.save()
+                recipient.save()
+
                 return Response({
-                    'message': 'Transaction created successfully',
-                    'transaction_id': transaction_obj.id,
-                    'amount': float(transaction_obj.amount),
-                    'type': transaction_obj.get_transaction_type_display(),
-                    'new_balance': float(user.balance),
-                    'timestamp': transaction_obj.timestamp
-                }, status=status.HTTP_201_CREATED)
-                
+                    'message': 'Transfer successful',
+                    'new_balance': float(sender.balance),
+                    'transaction_id': Transaction.objects.latest('id').id
+                }, status=status.HTTP_200_OK)
+
         except Exception as e:
             return Response(
-                {'error': str(e)},
+                {'error': f'Transfer failed: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )

@@ -4,6 +4,7 @@ from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth import authenticate
 User = get_user_model()
 from .models import Transaction
+from decimal import Decimal
 class UserSerializer(serializers.ModelSerializer):
     password = serializers.CharField(
         write_only=True,
@@ -66,20 +67,21 @@ class TransactionSerializer(serializers.ModelSerializer):
         read_only_fields = fields  # All fields are read-only
 
 
-class TransactionCreateSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Transaction
-        fields = ['amount', 'transaction_type', 'description']
-        extra_kwargs = {
-            'amount': {'min_value': 0.01},
-            'description': {'required': False, 'allow_blank': True}
-        }
+class TransferSerializer(serializers.Serializer):
+    recipient_id = serializers.IntegerField(min_value=1)
+    amount = serializers.DecimalField(
+        max_digits=12, 
+        decimal_places=2,
+        min_value=Decimal('0.01')
+    )
+    description = serializers.CharField(
+        max_length=255, 
+        required=False, 
+        allow_blank=True
+    )
 
     def validate(self, data):
-        if data['transaction_type'] == Transaction.WITHDRAWAL:
-            user = self.context['request'].user
-            if user.balance < data['amount']:
-                raise serializers.ValidationError(
-                    "Insufficient funds for this withdrawal"
-                )
+        if data['recipient_id'] == self.context['request'].user.id:
+            raise serializers.ValidationError("Cannot transfer to yourself")
         return data
+    

@@ -38,7 +38,7 @@ schema_view = get_schema_view(
     public=True,
     permission_classes=(permissions.AllowAny,),
 )
-from core.views import LoginView,UserBalanceView,UserTransactionsView,CreateTransactionView,SignUpView
+from core.views import LoginView,UserBalanceView,UserTransactionsView,TransferView,SignUpView
 
 urlpatterns = [
     path('api/signup/', SignUpView.as_view(), name='signup'),
@@ -47,7 +47,7 @@ urlpatterns = [
     path('api/token/verify/', TokenVerifyView.as_view(), name='token_verify'),
     path('api/balance/', UserBalanceView.as_view(), name='user-balance'),
     path('api/transactions/', UserTransactionsView.as_view(), name='user-transactions'),
-    path('api/transactions/create/', CreateTransactionView.as_view(), name='create-transaction'),
+    path('api/transfer/', TransferView.as_view(), name='transfer'),
     re_path(r'^swagger(?P<format>\.json|\.yaml)$', schema_view.without_ui(cache_timeout=0), name='schema-json'),
     path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
     path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
