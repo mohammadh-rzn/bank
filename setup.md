@@ -27,7 +27,7 @@ BALANCE_RATE_LIMIT=10/minute
 TRANSACTION_RATE_LIMIT=10/minute
 TRASFER_RATE_LIMIT=10/minute
 ```
-## Start sever
+## Start server
 
 ```bash
 python manage.py runserver
