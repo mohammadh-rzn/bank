@@ -13,7 +13,7 @@ pip install -r requirements.txt
 DB_ENGINE=django.db.backends.postgresql
 DB_NAME=bank
 DB_USER=bank
-DB_PASSWORD='bank'
+DB_PASSWORD=bank
 DB_HOST=localhost
 DB_PORT=5432
 ```
@@ -27,6 +27,11 @@ BALANCE_RATE_LIMIT=10/minute
 TRANSACTION_RATE_LIMIT=10/minute
 TRASFER_RATE_LIMIT=10/minute
 ```
+## Migrate to database
+```bash
+python manage.py migrate
+```
+
 ## Start server
 
 ```bash
