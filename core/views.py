@@ -20,11 +20,17 @@ from django.db import transaction
 from rest_framework.throttling import UserRateThrottle,ScopedRateThrottle
 from rest_framework.decorators import throttle_classes
 from decimal import Decimal
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
 from django.shortcuts import get_object_or_404
 class SignUpView(APIView):
     """
     User registration endpoint.
     """
+    @swagger_auto_schema(
+        operation_description="Signup new user",
+        request_body=UserSerializer
+    )
     def post(self, request):
         serializer = UserSerializer(data=request.data)
         if serializer.is_valid():
@@ -40,8 +46,15 @@ class SignUpView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
 class LoginView(APIView):
+    """
+    login user and generate 1-10 random transactions upon login
+    """
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = 'login'
+    @swagger_auto_schema(
+        operation_description="User login",
+        request_body=LoginSerializer,
+    )
     def post(self, request):
         serializer = LoginSerializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
@@ -121,6 +134,10 @@ class UserBalanceView(APIView):
     Authenticated view that returns the current user's balance
     """
     permission_classes = [IsAuthenticated]
+    @swagger_auto_schema(
+        operation_description="Get current user balance",
+        security=[{"Bearer": []}]
+    )
     def get(self,request):
         return Response({'balance':request.user.balance})
 
@@ -137,7 +154,11 @@ class UserTransactionsView(APIView):
     pagination_class = StandardResultsSetPagination
     throttle_classes = [ScopedRateThrottle,UserRateThrottle]
     throttle_scope = 'transaction'
-    
+    @swagger_auto_schema(
+        operation_description="Get a list paginated of transactions",
+        
+        security=[{"Bearer": []}]
+    )
     def get(self, request):
         transactions = Transaction.objects.filter(user=request.user).order_by('-timestamp')
         
@@ -160,7 +181,11 @@ class TransferView(APIView):
     permission_classes = [IsAuthenticated]
     throttle_classes = [ScopedRateThrottle,UserRateThrottle]
     throttle_scope = 'transfer'
-    
+    @swagger_auto_schema(
+        operation_description="Get a paginated list of transactions",
+        request_body=TransferSerializer,
+        security=[{"Bearer": []}]
+    )
     def post(self, request):
         serializer = TransferSerializer(data=request.data,context={'request': request})
         serializer.is_valid(raise_exception=True)
