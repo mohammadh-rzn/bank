@@ -70,7 +70,7 @@ class LoginView(APIView):
                 # Generate random transaction data
                 is_deposit = random.choice([True, False])
                 amount = round(random.uniform(1.00, 1000.00), 2)
-                timestamp = timezone.now() - timedelta(days=random.randint(0, 30))
+                timestamp = timezone.now()
                 
                 try:
                     if is_deposit:
@@ -155,13 +155,12 @@ class UserTransactionsView(APIView):
     throttle_classes = [ScopedRateThrottle,UserRateThrottle]
     throttle_scope = 'transaction'
     @swagger_auto_schema(
-        operation_description="Get a list paginated of transactions",
+        operation_description="Get a paginated list of transactions",
         
         security=[{"Bearer": []}]
     )
     def get(self, request):
         transactions = Transaction.objects.filter(user=request.user).order_by('-timestamp')
-        
         paginator = self.pagination_class()
         page = paginator.paginate_queryset(transactions, request)
         
