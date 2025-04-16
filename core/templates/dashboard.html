@@ -3,36 +3,69 @@
 <head>
     <meta charset="UTF-8">
     <title>Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
     <script src="https://unpkg.com/htmx.org@1.9.6"></script>
+    <script src="https://unpkg.com/htmx.org/dist/ext/ws.js"></script>
+</head>
+<script src="https://unpkg.com/htmx.org@1.9.6"></script>
+<script src="https://unpkg.com/htmx.org@1.9.6/dist/ext/json-enc.js"></script>
+<script src="/static/js/token_handler.js"></script>
+<body>
+    <div class="dashboard-container">
+        <header class="dashboard-header">
+            <div class="menu">
+                <a hx-get="/api/accounts/balance/" 
+                   hx-target="#dashboard-content" 
+                   hx-push-url="true"
+                   class="menu-item">Balance</a>
+                <a hx-get="/api/transactions/" 
+                   hx-target="#dashboard-content" 
+                   hx-push-url="true"
+                   class="menu-item">Transactions</a>
+            </div>
+            <div class="user-info">
+                <button class="logout-btn" onclick="logout()">Logout</button>
+            </div>
+        </header>
+
+        <main class="dashboard-content">
+            <div class="content-container">
+                <div id="dashboard-content" 
+                     hx-get="/api/accounts/balance/" 
+                     hx-trigger="load"
+                     hx-headers='{"Authorization": "Bearer {{ jwt_token }}"}'>
+                    Loading dashboard...
+                </div>
+            </div>
+        </main>
+    </div>
+
     <script>
-        // Check for token immediately on page load
+        function logout() {
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('refresh_token');
+            window.location.href = '/login/';
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
-            const token = localStorage.getItem('access_token') || sessionStorage.getItem('temp_token');
-            
+            const token = localStorage.getItem('access_token');
             if (!token) {
                 window.location.href = '/login/';
                 return;
             }
-            
-            // Clear the temporary token if it exists
-            if (sessionStorage.getItem('temp_token')) {
-                sessionStorage.removeItem('temp_token');
-            }
-            
-            // Initialize HTMX with the token
+
+            // Set headers for all HTMX requests
             htmx.on('htmx:configRequest', function(evt) {
                 evt.detail.headers['Authorization'] = 'Bearer ' + token;
             });
+
+            // Handle 401 unauthorized responses
+            htmx.on('htmx:responseError', function(evt) {
+                if (evt.detail.xhr.status === 401) {
+                    logout();
+                }
+            });
         });
     </script>
-    <link rel="stylesheet" href="/static/styles.css">
-</head>
-<body>
-    <!-- Rest of your dashboard template -->
-    <div id="dashboard-content"
-         hx-get="/api/balance/"
-         hx-trigger="load"
-         hx-headers='{"Authorization": "Bearer ${localStorage.getItem('access_token')}"}'>
-    </div>
 </body>
 </html>
