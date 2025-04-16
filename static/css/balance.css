@@ -1,0 +1,49 @@
+/* Container styling */
+.transactions-view {
+    padding: 24px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+/* Heading */
+.transactions-view h2 {
+    font-size: 28px;
+    color: #1890ff;
+    margin-bottom: 20px;
+}
+
+/* Table styling */
+.transactions-table {
+    width: 100%;
+    border-collapse: collapse;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.transactions-table thead {
+    background-color: #f5f5f5;
+}
+
+.transactions-table th,
+.transactions-table td {
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid #e8e8e8;
+    font-size: 14px;
+}
+
+/* Alternating row colors */
+.transactions-table tbody tr:nth-child(odd) {
+    background-color: #fafafa;
+}
+
+/* Amount styling */
+.positive {
+    color: #52c41a; /* green */
+    font-weight: 600;
+}
+
+.negative {
+    color: #f5222d; /* red */
+    font-weight: 600;
+}
