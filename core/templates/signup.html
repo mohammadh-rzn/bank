@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Sign Up</title>
+    <script src="https://unpkg.com/htmx.org@1.9.6"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.6/dist/ext/json-enc.js"></script>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="signup-container">
+        <div class="signup-card">
+            <h2 class="text-center">Sign Up</h2>
+            <form 
+                method="POST" 
+                hx-post="{% url 'signup' %}" 
+                hx-target="#signup-response"
+                hx-ext="json-enc"
+            >
+                {% csrf_token %}
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" name="username" class="input-field" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" class="input-field" required>
+                </div>
+                <div class="form-group">
+                    <label for="password2">Confirm Password</label>
+                    <input type="password" id="password2" name="password2" class="input-field" required>
+                </div>
+                <button type="submit" class="submit-btn">Sign Up</button>
+            </form>
+            <div class="login-link text-center">
+                <span>Already have an account?</span>
+                <a href="/login/" class="link">Login here</a>
+            </div>
+        </div>
+    </div>
+    <div id="signup-response"></div>
+
+    <script>
+        document.body.addEventListener('htmx:afterRequest', function(evt) {
+            if (evt.detail.successful) {
+                const response = JSON.parse(evt.detail.xhr.responseText);
+                const responseDiv = document.getElementById('signup-response');
+                
+                if (evt.detail.xhr.status === 201) {
+                    // Success case
+                    responseDiv.innerHTML = `
+                        <div class="success">
+                            ${response.success} <a href="/login/" class="link">Login here</a>
+                        </div>
+                    `;
+                } else if (evt.detail.xhr.status === 400) {
+                    // Error case
+                    let errorsHtml = '<div class="error"><ul>';
+                    for (const [field, messages] of Object.entries(response)) {
+                        errorsHtml += `<li>${field}: ${messages.join(', ')}</li>`;
+                    }
+                    errorsHtml += '</ul></div>';
+                    responseDiv.innerHTML = errorsHtml;
+                }
+            }
+        });
+    </script>
+</body>
+</html>

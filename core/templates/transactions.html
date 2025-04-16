@@ -1,0 +1,23 @@
+<div class="transactions-view">
+    <h2>Recent Transactions</h2>
+    <table class="transactions-table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Description</th>
+                <th>Amount</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for t in transactions %}
+            <tr>
+                <td>{{ t.date }}</td>
+                <td>{{ t.description }}</td>
+                <td class="{% if t.amount > 0 %}positive{% else %}negative{% endif %}">
+                    ${{ t.amount }}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>

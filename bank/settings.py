@@ -196,3 +196,10 @@ PASSWORD_HASHERS = [
 CORS_ALLOW_ALL_ORIGINS = DEBUG
 CORS_ALLOW_CREDENTIALS = True
 AUTH_USER_MODEL = 'core.User'
+
+STATIC_URL = '/static/'
+
+# Where Django will look for additional static files
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'static'),
+]

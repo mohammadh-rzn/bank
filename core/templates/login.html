@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Login</title>
+    <script src="https://unpkg.com/htmx.org@1.9.6"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.6/dist/ext/json-enc.js"></script>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <h2 class="text-center">Login</h2>
+            <form 
+                method="POST" 
+                hx-post="{% url 'login' %}" 
+                hx-target="#login-response"
+                hx-ext="json-enc"
+                hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
+            >
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" name="username" class="input-field" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" class="input-field" required>
+                </div>
+                <button type="submit" class="submit-btn">Login</button>
+            </form>
+            <div class="signup-link text-center">
+                <span>Don't have an account?</span>
+                <a href="/signup/" class="link">Sign up here</a>
+            </div>
+        </div>
+    </div>
+    <div id="login-response"></div>
+
+    <script>
+        // In your login.html template
+document.body.addEventListener('htmx:afterRequest', function(evt) {
+    const responseDiv = document.getElementById('login-response');
+    
+    if (evt.detail.successful) {
+        try {
+            const response = JSON.parse(evt.detail.xhr.responseText);
+            
+            if (evt.detail.xhr.status === 200) {
+                // Store tokens and redirect
+                localStorage.setItem('access_token', response.access);
+                localStorage.setItem('refresh_token', response.refresh);
+                
+                // Add authorization header for the redirect
+                const headers = new Headers();
+                headers.append('Authorization', `Bearer ${response.access}`);
+                
+                // Redirect with token in sessionStorage for initial load
+                sessionStorage.setItem('temp_token', response.access);
+                window.location.href = '/dashboard/';
+            }
+        } catch (e) {
+            responseDiv.innerHTML = `<div class="error">Login processing error</div>`;
+        }
+    }
+});
+    </script>
+</body>
+</html>

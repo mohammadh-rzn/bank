@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard</title>
+    <script src="https://unpkg.com/htmx.org@1.9.6"></script>
+    <script>
+        // Check for token immediately on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const token = localStorage.getItem('access_token') || sessionStorage.getItem('temp_token');
+            
+            if (!token) {
+                window.location.href = '/login/';
+                return;
+            }
+            
+            // Clear the temporary token if it exists
+            if (sessionStorage.getItem('temp_token')) {
+                sessionStorage.removeItem('temp_token');
+            }
+            
+            // Initialize HTMX with the token
+            htmx.on('htmx:configRequest', function(evt) {
+                evt.detail.headers['Authorization'] = 'Bearer ' + token;
+            });
+        });
+    </script>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <!-- Rest of your dashboard template -->
+    <div id="dashboard-content"
+         hx-get="/api/balance/"
+         hx-trigger="load"
+         hx-headers='{"Authorization": "Bearer ${localStorage.getItem('access_token')}"}'>
+    </div>
+</body>
+</html>

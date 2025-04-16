@@ -39,7 +39,7 @@ schema_view = get_schema_view(
     permission_classes=(permissions.AllowAny,),
     generator_class=BothHttpAndHttpsSchemaGenerator,
 )
-from core.views import LoginView,UserBalanceView,UserTransactionsView,TransferView,SignUpView
+from core.views import LoginView,UserBalanceView,UserTransactionsView,TransferView,SignUpView,signup_view,login_view,dashboard_view
 
 urlpatterns = [
     path('api/signup/', SignUpView.as_view(), name='signup'),
@@ -52,4 +52,7 @@ urlpatterns = [
     re_path(r'^swagger(?P<format>\.json|\.yaml)$', schema_view.without_ui(cache_timeout=0), name='schema-json'),
     path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
     path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
+    path('signup/', signup_view, name='signup_view'),
+    path('login/', login_view, name='login_view'),
+    path('dashboard/', dashboard_view, name='dashboard_view'),
 ]

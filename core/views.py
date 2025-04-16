@@ -23,6 +23,7 @@ from decimal import Decimal
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from django.shortcuts import get_object_or_404
+from django.shortcuts import render
 class SignUpView(APIView):
     """
     User registration endpoint.
@@ -44,6 +45,10 @@ class SignUpView(APIView):
                 status=status.HTTP_201_CREATED
             )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+def signup_view(request):
+    """Render the initial signup page"""
+    return render(request, 'signup.html')
     
 class LoginView(APIView):
     """
@@ -126,7 +131,9 @@ class LoginView(APIView):
             'balance': float(user.balance)
         }, status=status.HTTP_200_OK)
     
-
+def login_view(request):
+    """Render the login template"""
+    return render(request, 'login.html')
 class UserBalanceView(APIView):
     throttle_classes = [ScopedRateThrottle,UserRateThrottle]
     throttle_scope = 'balance'
@@ -237,3 +244,7 @@ class TransferView(APIView):
                 {'error': f'Transfer failed: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+def dashboard_view(request):
+    """Main dashboard view that renders the template"""
+    return render(request, 'dashboard.html')
