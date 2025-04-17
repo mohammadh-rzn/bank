@@ -39,6 +39,8 @@ grafna: 3000
 
 frontend: 4000
 
+jaeger: 16686
+
 ## Grafna settings
 go to localhost:3000
 click on top left to open menu
