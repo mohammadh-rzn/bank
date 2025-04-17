@@ -50,8 +50,28 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'django.contrib.postgres',
 ]
+# OpenTelemetry Configuration
+OTEL_EXPORTER_OTLP_ENDPOINT = "http://localhost:4317"  # Connect to exposed port
+OTEL_SERVICE_NAME = "django-banking-app"
+OTEL_PYTHON_LOG_CORRELATION = True
 
+# Instrumentation Configuration
+OPENTELEMETRY_INSTRUMENTATION = {
+    "django": {
+        "is_sql_commentor_enabled": True,
+        "is_commentor_with_truncate_tables_enabled": True,
+    }
+}
+
+# Add to INSTALLED_APPS
+INSTALLED_APPS += [
+    'opentelemetry.instrumentation.django',
+]
+from otel import setup_otel_tracing,setup_otel_metrics
+setup_otel_tracing()
+setup_otel_metrics()
 MIDDLEWARE = [
+    'opentelemetry.instrumentation.django.middleware.otel_middleware._DjangoMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -203,3 +223,53 @@ STATIC_URL = '/static/'
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR, 'static'),
 ]
+import logging
+import structlog
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'json': {
+            '()': structlog.stdlib.ProcessorFormatter,
+            'processor': structlog.processors.JSONRenderer(),
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'json',
+        },
+        'file': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': 'logs/api.log',
+            'maxBytes': 1024*1024*5,  # 5MB
+            'backupCount': 5,
+            'formatter': 'json',
+        },
+    },
+    'loggers': {
+        'api': {
+            'handlers': ['console', 'file'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+    },
+}
+
+structlog.configure(
+    processors=[
+        structlog.contextvars.merge_contextvars,
+        structlog.stdlib.filter_by_level,
+        structlog.processors.TimeStamper(fmt="iso"),
+        structlog.stdlib.add_logger_name,
+        structlog.stdlib.add_log_level,
+        structlog.stdlib.PositionalArgumentsFormatter(),
+        structlog.processors.StackInfoRenderer(),
+        structlog.processors.format_exc_info,
+        structlog.processors.UnicodeDecoder(),
+        structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
+    ],
+    logger_factory=structlog.stdlib.LoggerFactory(),
+    cache_logger_on_first_use=True,
+)

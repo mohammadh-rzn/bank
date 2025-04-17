@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  # Django Application
+  web:
+
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py runserver 0.0.0.0:8000"
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgres://postgres:postgres@db:5432/app_db
+      - OTEL_EXPORTER_OTLP_ENDPOINT=host.docker.internal:4317  # For Mac/Windows
+      # - OTEL_EXPORTER_OTLP_ENDPOINT=172.17.0.1:4317  # For Linux
+      - OTEL_SERVICE_NAME=django-banking-app
+      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=development
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # PostgreSQL Database
+  db:
+    image: postgres:14-alpine
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    environment:
+      - POSTGRES_DB=bank
+      - POSTGRES_USER=bank
+      - POSTGRES_PASSWORD=bank
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  frontend-1:
+    build:
+      context: ./bank-front-master
+    container_name: bank-frontend
+    ports:
+      - "4000:3000"
+    depends_on:
+      - web
+
+
+volumes:
+  postgres_data:
