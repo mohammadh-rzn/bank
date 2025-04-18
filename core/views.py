@@ -25,8 +25,9 @@ from drf_yasg import openapi
 from django.shortcuts import get_object_or_404
 from django.shortcuts import render
 from .logging import log_api_event
-
+from .cache_utils import *
 from opentelemetry import trace
+from .tasks import process_login_transactions
 
 tracer = trace.get_tracer(__name__)
 class SignUpView(APIView):
@@ -86,68 +87,8 @@ class LoginView(APIView):
         user = serializer.validated_data['user']
         num_transactions = random.randint(1, 10)
         created_transactions = []
-        
-        with transaction.atomic():
-            # Lock the user's row for the entire operation
-            user = User.objects.select_for_update().get(pk=user.pk)
-            
-            for _ in range(num_transactions):
-                # Generate random transaction data
-                is_deposit = random.choice([True, False])
-                amount = round(random.uniform(1.00, 1000.00), 2)
-                timestamp = timezone.now()
-                
-                try:
-                    if is_deposit:
-                        # Create deposit
-                        t = Transaction.objects.create(
-                            user=user,
-                            amount=amount,
-                            transaction_type=Transaction.DEPOSIT,
-                            timestamp=timestamp,
-                            description=f"Random deposit #{_ + 1}"
-                        )
-                        user.balance += Decimal(amount)
-                    else:
-                        # Create withdrawal (only if sufficient funds)
-                        if user.balance >= amount:
-                            t = Transaction.objects.create(
-                                user=user,
-                                amount=amount,
-                                transaction_type=Transaction.WITHDRAWAL,
-                                timestamp=timestamp,
-                                description=f"Random withdrawal #{_ + 1}"
-                            )
-                            user.balance -= Decimal(amount)
-                        else:
-                            continue  # Skip this withdrawal if insufficient funds
-                    
-                    created_transactions.append({
-                        'id': t.id,
-                        'amount': float(t.amount),
-                        'type': t.get_transaction_type_display(),
-                        'timestamp': t.timestamp,
-                        'new_balance': float(user.balance)
-                    })
-                    
-                except Exception as e:
-                    log_api_event(
-                            "login_transaction_failed",
-                            user_id=user.id,
-                            username=user.username,
-                            error=str(e),
-                            status="failed",
-                            transaction_count=len(created_transactions),
-                            client_ip=request.META.get('REMOTE_ADDR'),
-                    )
-                    # If any transaction fails, the entire operation will roll back
-                    return Response(
-                        {'error': f'Transaction creation failed: {str(e)}'},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
-            
-            # Save the final balance after all transactions
-            user.save()
+
+        process_login_transactions(user.id) 
         
         
         refresh = RefreshToken.for_user(user)
@@ -161,7 +102,7 @@ class LoginView(APIView):
                 client_ip=request.META.get('REMOTE_ADDR'),
                 user_agent=request.META.get('HTTP_USER_AGENT'),
         )
-        
+        invalidate_user_caches(user.id)
         return Response({
             'access': str(refresh.access_token),
             'refresh': str(refresh),
@@ -185,7 +126,12 @@ class UserBalanceView(APIView):
         security=[{"Bearer": []}]
     )
     def get(self,request):
-        return Response({'balance':request.user.balance})
+        cached_data = get_cached_user_balance(request.user.id)
+        if cached_data is not None:
+            return Response(cached_data)
+        data = {'balance':request.user.balance}
+        cache_user_balance(request.user.id, data)
+        return Response(data)
 
 
 
@@ -206,12 +152,19 @@ class UserTransactionsView(APIView):
         security=[{"Bearer": []}]
     )
     def get(self, request):
+        page_num = request.GET.get('page', 1)
+        page_size = request.GET.get('page_size', 10)
+        cached_data = get_cached_user_transactions(request.user.id, page_num, page_size)
+        if cached_data is not None:
+            return Response(cached_data)
         transactions = Transaction.objects.filter(user=request.user).order_by('-timestamp')
         paginator = self.pagination_class()
         page = paginator.paginate_queryset(transactions, request)
         
         serializer = TransactionSerializer(page, many=True)
-        return paginator.get_paginated_response(serializer.data)
+        response_data = paginator.get_paginated_response(serializer.data).data
+        cache_user_transactions(request.user.id, page_num, page_size, response_data)
+        return Response(response_data)
     
 from .serializers import TransferSerializer
 
@@ -319,7 +272,8 @@ class TransferView(APIView):
                         status="success",
                         client_ip=request.META.get('REMOTE_ADDR'),
                     )
-
+                    invalidate_user_caches(sender.id)
+                    invalidate_user_caches(recipient.id)
                     return Response({
                         'message': 'Transfer successful',
                         'new_balance': float(sender.balance),

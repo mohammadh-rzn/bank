@@ -116,6 +116,13 @@ class Transaction(models.Model):
                 name="transaction_amount_positive"
             )
         ]
+        indexes = [
+            # Most important: Index for user transactions lookup
+            models.Index(fields=['user']),
+            
+            # Index for timestamp (default ordering)
+            models.Index(fields=['-timestamp']),
+        ]
     
     def __str__(self):
         return f"{self.get_transaction_type_display()} of ${self.amount} by {self.user.username}"

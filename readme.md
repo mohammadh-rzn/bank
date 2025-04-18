@@ -41,12 +41,7 @@ frontend: 4000
 
 jaeger: 16686
 
-## Grafna settings
-go to localhost:3000
-click on top left to open menu
-on the menu click connections
-search and click on prometheus
-click add new data source
-in connection add this url http://prometheus:9090
-now go to home and click on + to  start a new dashboard with available metrics
+## Grafana settings
+
+grafana is pre provisioned
 

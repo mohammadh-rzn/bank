@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'django.contrib.postgres',
+    'background_task',
 ]
 # OpenTelemetry Configuration
 OTEL_EXPORTER_OTLP_ENDPOINT = "http://localhost:4317"  # Connect to exposed port
@@ -104,7 +105,7 @@ WSGI_APPLICATION = 'bank.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
-
+DATABASE_WRAPPER = 'core.db.pooling.PooledDatabaseWrapper'
 DATABASES = {
     'default': {
         'ENGINE': os.getenv('DB_ENGINE'),
@@ -113,9 +114,22 @@ DATABASES = {
         'PASSWORD': os.getenv('DB_PASSWORD'),
         'HOST': os.getenv('DB_HOST'),
         'PORT': os.getenv('DB_PORT'),
+        'OPTIONS': {
+            'MAX_CONNS': 20,          # Maximum connections in pool
+            'REUSE_CONNS': 10,        # Connections to keep open
+            'sslmode': 'prefer',      # Valid PostgreSQL connection option
+            'connect_timeout': 5,     # Connection timeout in seconds
+        }
     }
 }
-
+import sys
+if 'test' in sys.argv:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': ':memory:',  # In-memory database
+        }
+    }
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
@@ -273,3 +287,18 @@ structlog.configure(
     logger_factory=structlog.stdlib.LoggerFactory(),
     cache_logger_on_first_use=True,
 )
+BALANCE_CACHE_TIMEOUT = 120  # 2 minutes
+TRANSACTIONS_CACHE_TIMEOUT = 300
+USER_CACHE_TIMEOUT = 1000  # 5 minutes
+
+# settings.py
+# Q_CLUSTER = {
+#     'name': 'BankAppQueue',
+#     'workers': 4,
+#     'timeout': 90,
+#     'retry': 120,
+#     'queue_limit': 50,
+#     'orm': 'default',  # Use Django ORM as broker
+#     'sync': False,     # Run async in development
+#     'catch_up': False, # Don't process old tasks
+# }

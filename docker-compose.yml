@@ -25,6 +25,19 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: python manage.py process_tasks
+    volumes:
+      - .:/app
+    environment:
+      - DATABASE_URL=postgres://bank:bank@db:5432/bank
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
   # PostgreSQL Database
   db:
     image: postgres:14-alpine
