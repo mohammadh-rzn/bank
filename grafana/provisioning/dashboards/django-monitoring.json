@@ -1,0 +1,25 @@
+{
+    "title": "Django Application Monitoring",
+    "panels": [
+      {
+        "title": "Request Rates",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "sum(rate(django_http_requests_total[1m])) by (method)",
+            "legendFormat": "{{method}}"
+          }
+        ]
+      },
+      {
+        "title": "Error Rates",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum(rate(django_http_requests_total{status=~\"5..\"}[1m])) / sum(rate(django_http_requests_total[1m]))",
+            "format": "percentunit"
+          }
+        ]
+      }
+    ]
+  }
