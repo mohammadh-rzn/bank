@@ -72,7 +72,7 @@ class BankApiTestUser(HttpUser):
     
     @task(4)
     def get_transactions(self):
-        params = {"page": 1, "page_size": random.choice([5, 10, 20])}
+        params = {"page": 1, "page_size": random.choice([10, 100, 1000])}
         self.client.get("/api/transactions/", headers=self.headers, params=params)
     
     @task(3)
